@@ -1,0 +1,3 @@
+import frame
+
+frame.alarm()
