@@ -12,6 +12,8 @@ from enum import Enum
 LOCAL_ID = 1
 DATABASE = 'device'
 connected_dict = {}
+ICON_PATH="../../web_front/tiles/geojson/men-zhen-lou/f1/men-zhen-lou_f1_status.geojson"
+
 
 class status(Enum):
     """设备状态"""
@@ -178,7 +180,13 @@ async def alarm_handler(websocket, frame_dict):
         data[
             'location'] = f'院楼：{location_dict["building"]}\n楼层：{location_dict["floor"]}\n房间：{location_dict["room"]}'
 
-    #     TODO:改地图
+    # 改地图
+    with open(ICON_PATH,'r') as file:
+        icon_data=json.load(file)
+    icon_data['features'][2]['properties']['status']="3"
+    with open(ICON_PATH,'w') as file:
+        json.dump(icon_data,file,indent=4)
+    
     # 广播报警信息
     for id, ws in connected_dict.items():
         if id != frame_dict['source_id']:
@@ -226,7 +234,7 @@ async def handler(websocket):
 
 async def main():
     # 监听所有接口
-    async with websockets.serve(handler, "localhost", 8765):
+    async with websockets.serve(handler, "", 8765):
         await asyncio.Future()  # run forever
 
 
