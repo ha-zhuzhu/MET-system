@@ -1,11 +1,11 @@
 # 模仿报警器的行为
 import asyncio
-from websockets.sync.client import connect
+import websockets
 import time
 import binascii
 import json
 
-LOCAL_ID=2
+
 SERVER_ID=1
 
 def calculate_crc(data):
@@ -16,12 +16,12 @@ def calculate_crc(data):
     # 返回CRC值
     return crc32_value
 
-def make_frame(type, destination_id, data):
+def make_frame(type,device_id, destination_id, data):
     """生成帧"""
     timestamp = int(time.time())
     frame_dict = {
         "type": type,
-        "source_id": LOCAL_ID,
+        "source_id": device_id,
         "destination_id": destination_id,
         "timestamp": timestamp,
         "data": data,
@@ -29,12 +29,12 @@ def make_frame(type, destination_id, data):
     }
     return json.dumps(frame_dict)
 
-def ack(websocket, destination_id):
+def ack(websocket, device_id,destination_id):
     """发送ack帧"""
     data_dict={
         "type":"ack",
     }
-    frame= make_frame('response',destination_id,data_dict)
+    frame= make_frame('response',device_id,destination_id,data_dict)
     websocket.send(frame)
     print('Sent:', frame)
 
@@ -44,8 +44,8 @@ def register():
         "type":"alarm",
         "mac":"00:00:00:00:00:00",
     }
-    frame= make_frame('register',SERVER_ID,data_dict)
-    with connect("ws://localhost:8765") as websocket:
+    frame= make_frame('register',0,SERVER_ID,data_dict)
+    with websockets.connect("ws://localhost:8765") as websocket:
         websocket.send(frame)
         print('Sent:', frame)
 #         重复接收并输出服务器发送的消息
@@ -55,21 +55,43 @@ def register():
             time.sleep(1)
             recv_frame_dict= json.loads(recv_frame)
             if recv_frame_dict['type']!='response':
-                ack(websocket,SERVER_ID)
+                ack(websocket,0,SERVER_ID)
 
-def alarm():
+def alarm(device_id):
     """发送报警帧"""
     data_dict={
         "type":"alarm",
         "timestamp":int(time.time()),
-        "location":"room 101",
+        "location":"",
     }
-    frame= make_frame('alarm',SERVER_ID,data_dict)
-    with connect("ws://localhost:8765") as websocket:
+    frame= make_frame('alarm',device_id,SERVER_ID,data_dict)
+    with websockets.connect("ws://localhost:8008") as websocket:
         websocket.send(frame)
         print('Sent:', frame)
         while True:
+            # 这是不好的写法
             recv_frame = websocket.recv()
             print("received:",recv_frame)
             time.sleep(1)
 
+
+async def alarm_and_connect(device_id):
+    """发送报警帧并保持连接"""
+    data_dict={
+        "type":"alarm",
+        "timestamp":int(time.time()),
+        "location":"",
+    }
+
+    frame= make_frame('alarm',device_id,SERVER_ID,data_dict)
+    async for websocket in websockets.connect("ws://localhost:8008"):
+        await websocket.send(frame)
+        print('Sent:', frame)
+        try:
+            async for frame in websocket:
+                print("Received:", frame)
+        except websockets.ConnectionClosed:
+            print('Connection closed')
+            continue
+
+# asyncio.run(alarm_and_connect())
