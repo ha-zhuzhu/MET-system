@@ -55,6 +55,10 @@ class Emergency_data():
     async def check_user_device(self,user_id,device_id):
         """检查device_id是否是user_id负责的"""
         async with self.user_to_device_lock:
+            if user_id not in self.user_to_device.keys():
+                return False
+            print(self.user_to_device)
+            print(device_id in self.user_to_device[user_id])
             #     return device_id in self.user_to_device[user_id]
 # KeyError: 5
             return device_id in self.user_to_device[user_id]

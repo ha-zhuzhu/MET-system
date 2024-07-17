@@ -7,12 +7,22 @@ import json
 icon_path_dict={'menzhenlou':
                 {1:'/home/pc/MET/web_front/tiles/geojson/men-zhen-lou/f1/men-zhen-lou_f1_status.geojson',
                  2:'/home/pc/MET/web_front/tiles/geojson/men-zhen-lou/f2/men-zhen-lou_f2_status.geojson'
+                },
+                'laojizhenlou':
+                {
+                    1:'/home/pc/MET/web_front/tiles/geojson/lao-ji-zhen-lou/f1/lao-ji-zhen-lou_f1_status.geojson',
+                    2:'/home/pc/MET/web_front/tiles/geojson/lao-ji-zhen-lou/f2/lao-ji-zhen-lou_f2_status.geojson'
                 }
                 }
 # 给前端用的
 icon_relative_path_dict={'menzhenlou':
                          {1:'/men-zhen-lou/f1/men-zhen-lou_f1_status.geojson',
                           2:'/men-zhen-lou/f2/men-zhen-lou_f2_status.geojson'
+                          },
+                          'laojizhenlou':
+                          {
+                                1:'/lao-ji-zhen-lou/f1/lao-ji-zhen-lou_f1_status.geojson',
+                                2:'/lao-ji-zhen-lou/f2/lao-ji-zhen-lou_f2_status.geojson'
                           }
                          }
 

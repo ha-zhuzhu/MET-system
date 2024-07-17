@@ -62,3 +62,17 @@ async def request_response(websocket,user_id,status,log=''):
                     },
         })
     await websocket.send(frame)
+
+async def path_update(start_node_id,end_node_id,path_data):
+    """广播路径更新"""
+    frame=json.dumps(
+        {'type':'path_update',
+         'source_id':1,
+         'destination_id': 0, 
+         'timestamp':int(time.time()),
+            'data':{'start_node_id':start_node_id,
+                    'end_node_id':end_node_id,
+                    'path_data':path_data
+                    },
+        })
+    await connection.user.broadcast(frame)

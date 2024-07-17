@@ -4,6 +4,7 @@ import json
 import time
 import binascii
 import logging
+import connection
 
 # 本机ID
 LOCAL_ID = 1
@@ -81,3 +82,17 @@ async def config(websocket, destination_id, data):
     """发送配置帧"""
     frame = await make_frame('config', destination_id, data)
     await send_frame(websocket, frame)
+
+async def qrcode_broadcast(qrcode_str):
+    """广播二维码"""
+    data={
+        "qrcode":{
+            "width":132,
+            "height":132,
+            "data":qrcode_str
+        }
+    }
+    id_to_connection=await connection.device.get_id_to_connection()
+    for device_id,websocket in id_to_connection.items():
+        frame = await make_frame('config', device_id, data)
+        await send_frame(websocket, frame)

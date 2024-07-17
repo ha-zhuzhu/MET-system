@@ -16,7 +16,7 @@ import logging
 # 本机ID
 LOCAL_ID = 1
 MET_ID=2
-DATABASE = 'device.db'
+DATABASE = 'data/device.db'
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",
@@ -36,6 +36,7 @@ async def handler(websocket):
     try:
         async for frame in websocket:
             print("Received:", frame)
+            logging.info("Received:{}".format(frame))
             frame_dict = json.loads(frame)
             if 'sender' in frame_dict.keys():
                 # 用户帧

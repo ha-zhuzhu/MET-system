@@ -13,6 +13,8 @@ import map_data
 import status
 from emergency_data import *
 import logging
+import device_frame
+import qr_code
 
 MET_ID=2
 
@@ -124,9 +126,10 @@ async def request_handler(websocket,frame_dict):
             # 修改设备状态
             device_id=frame_dict['data']['device_id']
             device_status=frame_dict['data']['device_status']
+            print("id connection:",await connection.device.get_connection(device_id))
             # 发送配置帧
             try:
-                await device.config(await connection.device.get_connection(device_id),device_id,{'status':device_status})                      
+                await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':device_status})                      
             except:
                 await connection.device.remove_connection(device_id)
                 print('device {} not connected'.format(device_id))
@@ -166,7 +169,7 @@ async def request_handler(websocket,frame_dict):
             # 若有响应，则设备状态改为响应
             if device_status==status.button.doc_response.value:
                 try:
-                    await device.response(await connection.device.get_connection(device_id),device_id,'doc')
+                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
                 except:
                     await connection.device.remove_connection(device_id)
                     print('device {} not connected'.format(device_id))
@@ -177,7 +180,7 @@ async def request_handler(websocket,frame_dict):
 
             if device_status==status.button.aed_response.value:
                 try:
-                    await device.response(await connection.device.get_connection(device_id),device_id,'aed')
+                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'aed')
                 except:
                     await connection.device.remove_connection(device_id)
                     print('device {} not connected'.format(device_id))
@@ -192,8 +195,10 @@ async def request_handler(websocket,frame_dict):
         # 请求帧来自医生
         device_id=frame_dict['data']['device_id']
         device_status=frame_dict['data']['device_status']
+        print("here")
         if not await emerg_data.check_user_device(user_id,device_id):
             # 医生不负责该设备
+            print('user_id:',user_id,'device_id:',device_id,'not responsible for this device')
             await user_frame.request_response(websocket,user_id,0,'doctor not responsible for this device')
         else:
             # 医生负责该设备
@@ -217,7 +222,7 @@ async def request_handler(websocket,frame_dict):
                 await database.set_user_status(user_id,status.doctor.response.value)
                 # 通知设备
                 try:
-                    await device.response(await connection.device.get_connection(device_id),device_id,'doc')
+                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
                 except:
                     await connection.device.remove_connection(device_id)
                     print('device {} not connected'.format(device_id))
@@ -242,7 +247,7 @@ async def request_handler(websocket,frame_dict):
                     # TODO：没有考虑AED的响应，只考虑了人
                     # 通知设备
                     try:
-                        await device.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.alarm.value})
+                        await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.alarm.value})
                     except:
                         await connection.device.remove_connection(device_id)
                         print('device {} not connected'.format(device_id))
@@ -268,6 +273,36 @@ async def request_handler(websocket,frame_dict):
         map_source=icon_relative_path.split('/')[-1].split('.')[0]
         await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
 
+async def request_upload_handler(websocket,frame_dict):
+    """二维码上传帧处理"""
+    print('here')
+    qrcode_base64=frame_dict['data']['message']
+    # 年月日时分秒作为文件名
+    filename=time.strftime("%Y%m%d%H%M%S", time.localtime())
+    # 保存到本地
+    image_path=await qr_code.save_base64(qrcode_base64,filename)
+    # 解码
+    qrcode_data=await qr_code.decode(image_path)
+    print(qrcode_data)
+    # 生成新二维码
+    await qr_code.create(qrcode_data,filename,132)
+    # 转换为设备可用格式
+    data_for_device=await qr_code.convert_for_device(filename)
+    # 通知所有在线设备
+    await device_frame.qrcode_broadcast(data_for_device)
+
+async def path_request_handler(websocket,frame_dict):
+    """路径请求帧处理"""
+    start_node_id=frame_dict['data']['start_node_id']
+    end_node_id=frame_dict['data']['end_node_id']
+    # 需要一个来自path_planning的函数
+    # 函数输入：start_node_id,end_node_id
+    # 函数生成路径，得到所需的path_data（json或者dict格式）
+    # 函数返回：path_data
+    # 类似下面这样
+    # path_data=await path_planning.get_path(start_node_id,end_node_id)
+    path_data={}
+    await user_frame.path_update(start_node_id,end_node_id,path_data)
 
 async def handler(websocket, frame_dict, connection_added):
     """前端信息处理"""
@@ -286,7 +321,12 @@ async def handler(websocket, frame_dict, connection_added):
         await token_login_handler(websocket,frame_dict)
     elif frame_dict['type'] == 'request':
         # 请求帧
-        await request_handler(websocket,frame_dict)             
+        await request_handler(websocket,frame_dict)
+    elif frame_dict['type'] == 'request_upload':
+        # 二维码上传帧
+        await request_upload_handler(websocket,frame_dict)
+    elif frame_dict['type'] == 'path_request':
+        await path_request_handler(websocket,frame_dict)
     else:
         # 未知信息帧
         await user_frame.request_response(websocket,frame_dict['source_id'],0,'frame type not recognized')

@@ -10,6 +10,7 @@ class Device_connections():
 
     async def add_connection(self,device_id,websocket):
         """添加连接"""
+        print('Add connection:',device_id,websocket)
         async with self.id_to_connection_lock:
             self.id_to_connection[device_id]=websocket
 
@@ -22,17 +23,31 @@ class Device_connections():
                     break
     
     async def get_connection(self,device_id):
-        """获取连接"""
+        """根据设备id获取连接"""
         async with self.id_to_connection_lock:
             return self.id_to_connection[device_id]
         
     async def get_device_id(self,websocket):
-        """获取设备id"""
+        """根据websocket获取设备id"""
         async with self.id_to_connection_lock:
             for key,value in self.id_to_connection.items():
                 if value==websocket:
                     return key
             return None
+
+    async def get_id_to_connection(self):
+        """获取id_to_connection"""
+        connections_copy=self.id_to_connection.copy()
+        return connections_copy
+
+    async def broadcast(self,message):
+        """广播"""
+        connections_copy=self.id_to_connection.copy()
+        for key,value in connections_copy.items():
+            try:
+                await value.send(message)
+            except websockets.ConnectionClosed:
+                pass
         
         
 

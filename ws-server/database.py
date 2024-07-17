@@ -2,7 +2,7 @@
 import asyncio
 import aiosqlite
 
-DATABASE = 'device.db'
+DATABASE = 'data/device.db'
 
 async def get_user_id(device_id):
     """从relation表中查找device_id对应的所有user_id"""
