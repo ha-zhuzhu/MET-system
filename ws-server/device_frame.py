@@ -55,6 +55,8 @@ async def send_frame(websocket, frame, timeout=60, retry=3):
     if not success:
         print('Send frame failed')
         logging.debug('device send frame timeout')
+        return 0
+    return 1
 
 
 async def response(websocket, destination_id, type, message=None):
@@ -68,31 +70,19 @@ async def response(websocket, destination_id, type, message=None):
     if type=='ack' or type=='err':
         # 不需要等待对方的响应
         await websocket.send(frame)
+        ret=1
     else:
-        await send_frame(websocket, frame)
+        ret=await send_frame(websocket, frame)
+    return ret
 
 
 async def alarm(websocket, destination_id, data):
     """发送报警帧"""
     frame = await make_frame('alarm', destination_id, data)
-    await send_frame(websocket, frame)
+    return await send_frame(websocket, frame)
 
 
 async def config(websocket, destination_id, data):
     """发送配置帧"""
     frame = await make_frame('config', destination_id, data)
-    await send_frame(websocket, frame)
-
-async def qrcode_broadcast(qrcode_str):
-    """广播二维码"""
-    data={
-        "qrcode":{
-            "width":132,
-            "height":132,
-            "data":qrcode_str
-        }
-    }
-    id_to_connection=await connection.device.get_id_to_connection()
-    for device_id,websocket in id_to_connection.items():
-        frame = await make_frame('config', device_id, data)
-        await send_frame(websocket, frame)
+    return await send_frame(websocket, frame)

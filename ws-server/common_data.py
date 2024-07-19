@@ -1,9 +1,21 @@
-# 多个文件公用的一些变量
+# 后端多个组件共用的一些变量，随着系统的运行而变化
 import asyncio
+import database
+import base64
+import aiofile
+import cv2
+import pyzbar.pyzbar
+import qrcode
+from PIL import Image
+import os
+import time
 import database
 
 emerg_msg_template='[紧急情况]院楼：{building}。楼层：{floor}。房间：{room}。'
 resp_msg_template='{doctor}已响应。'
+
+raw_qrcode_path='data/qrcode/raw/'
+generate_qrcode_path='data/qrcode/generate/'
 
 class Emergency_data():
     """存储应急情况相关数据"""
@@ -149,4 +161,95 @@ class Emergency_data():
             message_list_copy=self.message_list.copy()
         return message_list_copy
   
+class QRcode():
+    """存储二维码相关数据"""
+    def __init__(self):
+        # 最新的二维码版本，年月日时分秒
+        self.latest_version=None
+        self.data_for_device=''
+
+    
+    async def init(self):
+        """初始化"""
+        self.latest_version=await database.get_qrcode_version()
+        if self.latest_version!=None:
+            async with aiofile.async_open(os.path.join(generate_qrcode_path, self.latest_version+'.txt'), 'r') as file:
+                self.data_for_device=await file.read()
+    
+    async def save_base64_raw(self,base64_data):
+        """保存前端传来的base64编码原始二维码"""
+        self.latest_version=time.strftime("%Y%m%d%H%M%S", time.localtime())
+        head, context = base64_data.split(",")
+        img_data = base64.b64decode(context)
+        head2, head3 = head.split('/')
+        img_type, head4 = head3.split(';')
+        img_path=os.path.join(raw_qrcode_path,self.latest_version+'.'+img_type)
+        async with aiofile.async_open(img_path, 'wb') as file:
+            await file.write(img_data)
+        return img_path
+        
+
+    async def decode(self,image_path):
+        """解码二维码，返回字符串"""
+        image = cv2.imread(image_path)
+        decoded_objects = pyzbar.pyzbar.decode(image)
+        return decoded_objects.pop().data.decode("utf-8")
+
+    async def generate(self, data, size):
+        """根据文本数据生成二维码"""
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # 调整图像大小 LANCZOS
+        img = img.resize((size, size),Image.LANCZOS)
+        # 保存图像
+        filepath=os.path.join(generate_qrcode_path,self.latest_version+'.png')
+        # lv_img_conv.py 不能够直接转换灰度图像
+        img.convert("RGB").save(filepath)
+
+    async def convert_for_device(self):
+        """将二维码图像，转换为lvgl RGB565SWAP true_color_alpha格式，再转为base64字符串以供发送"""
+        img_path=os.path.join(generate_qrcode_path, self.latest_version+'.png')
+        # 生成c代码格式和bin格式的lvgl图片
+        process = await asyncio.create_subprocess_shell('python3 lv_img_conv.py -f true_color_alpha -cf RGB565SWAP -ff C '+img_path)
+        await process.communicate()
+        process = await asyncio.create_subprocess_shell('python3 lv_img_conv.py -f true_color_alpha -cf RGB565SWAP -ff BIN '+img_path)
+        await process.communicate()
+
+        async with aiofile.async_open(os.path.join(generate_qrcode_path, self.latest_version+'.bin'), 'rb') as file:
+            img_data = await file.read()
+        # 转为base64
+        self.data_for_device= base64.b64encode(img_data).decode()
+        # 保存至txt
+        async with aiofile.async_open(os.path.join(generate_qrcode_path, self.latest_version+'.txt'), 'w') as file:
+            await file.write(self.data_for_device)
+        return self.data_for_device
+
+    async def update(self,base64_data):
+        """更新二维码"""
+        raw_img_path=await self.save_base64_raw(base64_data)
+        info=await self.decode(raw_img_path)
+        if info=='':
+            return 0
+        await self.generate(info, 132)
+        await self.convert_for_device()
+        await database.set_qrcode_version(self.latest_version)
+        return self.data_for_device
+
+    async def get_data_for_device(self):
+        return self.data_for_device
+    
+    async def get_latest_version(self):
+        return self.latest_version
+
+ 
 emerg_data=Emergency_data()
+qr_code=QRcode()

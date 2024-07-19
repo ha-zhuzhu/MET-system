@@ -184,3 +184,38 @@ async def check_id_to_token(user_id,token):
             return 1
         else:
             return 0
+        
+async def set_qrcode_version(version):
+    """设置二维码版本"""
+    async with aiosqlite.connect(DATABASE) as db:
+        await db.execute("UPDATE version SET version = ? WHERE name = 'qrcode'", (version,))
+        await db.commit()
+
+async def get_qrcode_version():
+    """获取二维码版本"""
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute("SELECT version FROM version WHERE name = 'qrcode'") as cursor:
+            version = await cursor.fetchone()
+        if version is not None:
+            # version可能是(None,)
+            return version[0]
+        else:
+            return None
+
+        
+async def check_device_qrcode_version(device_id):
+    """检查设备的qrcode版本是否是最新，是则返回1,否则返回0"""
+    latest_version=await get_qrcode_version()
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute("SELECT qrcode_version FROM device WHERE device_id = ?", (device_id,)) as cursor:
+            version = await cursor.fetchone()
+        if version is not None and version[0]==latest_version:
+            return 1
+        else:
+            return 0
+
+async def set_device_qrcode_version(device_id,version):
+    """设置设备目前的qrcode版本"""
+    async with aiosqlite.connect(DATABASE) as db:
+        await db.execute("UPDATE device SET qrcode_version = ? WHERE device_id = ?", (version, device_id))
+        await db.commit()

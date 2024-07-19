@@ -1,6 +1,6 @@
 # 与硬件设备通信相关
 import asyncio
-from emergency_data import *
+from common_data import *
 import database
 import map_data
 import status
@@ -8,7 +8,6 @@ import user_frame
 import connection
 import logging
 import device_frame
-
 
 
 async def check_frame(websocket, frame_dict):
@@ -39,12 +38,13 @@ async def register_handler(websocket, frame_dict):
         await device_frame.response(websocket, frame_dict['source_id'], 'err', 'register data error')
     if data['type'] not in ['alarm', 'aed', 'met', 'doc']:
         await device_frame.response(websocket, frame_dict['source_id'], 'err', 'device type error')
-
+    #TODO:connection 相关数据也应该修改
     # 更新数据库
     new_id = await database.add_new_device(data['type'], data['mac'], status.button.standby.value)
 
     # 发送配置帧
     await device_frame.config(websocket, frame_dict['source_id'], {'id': new_id})
+    frame_dict['source_id'] = new_id
 
 
 async def alarm_handler(websocket, frame_dict):
@@ -100,6 +100,21 @@ async def config_handler(websocket, frame_dict):
         # 很复杂，暂时不做
         print('Not implemented yet')
 
+async def qrcode_update(websocket,device_id):
+    """更新二维码"""
+    data_for_device=await qr_code.get_data_for_device()
+    latest_version=await qr_code.get_latest_version()
+    try:
+        ret=await device_frame.config(websocket,device_id,{"qrcode":{"width":132,"height":132,"data":data_for_device}})
+    except:
+        await connection.device.remove_connection(device_id)
+        print('Config qrcode failed. Device {} not connected'.format(device_id))
+        logging.debug('Config qrcode failed. Device {} not connected'.format(device_id))
+        ret=0
+    if ret==1:
+        await database.set_device_qrcode_version(device_id,latest_version)
+
+
 async def handler(websocket, frame_dict,connection_added):
     await check_frame(websocket, frame_dict)
     await check_crc(websocket, frame_dict)
@@ -113,6 +128,7 @@ async def handler(websocket, frame_dict,connection_added):
         await alarm_handler(websocket, frame_dict)
     elif frame_dict['type'] == 'config':
         await config_handler(websocket, frame_dict)
+    await qrcode_update(websocket,frame_dict['source_id'])
 
 async def offline_handler(websocket):
     """掉线处理"""

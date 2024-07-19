@@ -11,10 +11,9 @@ import user_frame
 import device
 import map_data
 import status
-from emergency_data import *
+from common_data import *
 import logging
 import device_frame
-import qr_code
 
 MET_ID=2
 
@@ -132,8 +131,8 @@ async def request_handler(websocket,frame_dict):
                 await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':device_status})                      
             except:
                 await connection.device.remove_connection(device_id)
-                print('device {} not connected'.format(device_id))
-                logging.debug('device {} not connected'.format(device_id))
+                print('Config status failed. Device {} not connected'.format(device_id))
+                logging.debug('Config status failed. Device {} not connected'.format(device_id))
                 # 修改地图
                 icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                 map_data_dict[icon_relative_path]=icon_data
@@ -172,8 +171,8 @@ async def request_handler(websocket,frame_dict):
                     await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
                 except:
                     await connection.device.remove_connection(device_id)
-                    print('device {} not connected'.format(device_id))
-                    logging.debug('device {} not connected'.format(device_id))
+                    print('Config to doc_response status failed. Device {} not connected'.format(device_id))
+                    logging.debug('Config to responsed status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
@@ -183,8 +182,8 @@ async def request_handler(websocket,frame_dict):
                     await device_frame.response(await connection.device.get_connection(device_id),device_id,'aed')
                 except:
                     await connection.device.remove_connection(device_id)
-                    print('device {} not connected'.format(device_id))
-                    logging.debug('device {} not connected'.format(device_id))
+                    print('Config to aed_response status failed. Device {} not connected'.format(device_id))
+                    logging.debug('Config to aed_response status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
@@ -225,8 +224,8 @@ async def request_handler(websocket,frame_dict):
                     await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
                 except:
                     await connection.device.remove_connection(device_id)
-                    print('device {} not connected'.format(device_id))
-                    logging.debug('device {} not connected'.format(device_id))
+                    print('Config to doc_response status failed. Device {} not connected'.format(device_id))
+                    logging.debug('Config to doc_response status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
@@ -250,8 +249,8 @@ async def request_handler(websocket,frame_dict):
                         await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.alarm.value})
                     except:
                         await connection.device.remove_connection(device_id)
-                        print('device {} not connected'.format(device_id))
-                        logging.debug('device {} not connected'.format(device_id))
+                        print('Config to alarm status failed. Device {} not connected'.format(device_id))
+                        logging.debug('Config to alarm status failed. Device {} not connected'.format(device_id))
                         # 修改地图
                         icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                         map_data_dict[icon_relative_path]=icon_data
@@ -275,21 +274,22 @@ async def request_handler(websocket,frame_dict):
 
 async def request_upload_handler(websocket,frame_dict):
     """二维码上传帧处理"""
-    print('here')
     qrcode_base64=frame_dict['data']['message']
-    # 年月日时分秒作为文件名
-    filename=time.strftime("%Y%m%d%H%M%S", time.localtime())
-    # 保存到本地
-    image_path=await qr_code.save_base64(qrcode_base64,filename)
-    # 解码
-    qrcode_data=await qr_code.decode(image_path)
-    print(qrcode_data)
-    # 生成新二维码
-    await qr_code.create(qrcode_data,filename,132)
-    # 转换为设备可用格式
-    data_for_device=await qr_code.convert_for_device(filename)
+    data_for_device=await qr_code.update(qrcode_base64)
+    latest_version=await qr_code.get_latest_version()
+
     # 通知所有在线设备
-    await device_frame.qrcode_broadcast(data_for_device)
+    id_to_connection=await connection.device.get_id_to_connection()
+    for device_id,websocket in id_to_connection.items():
+        try:
+            ret=await device_frame.config(websocket,device_id,{"qrcode":{"width":132,"height":132,"data":data_for_device}})
+        except:
+            await connection.device.remove_connection(device_id)
+            print('Config qrcode failed. Device {} not connected'.format(device_id))
+            logging.debug('Config qrcode failed. Device {} not connected'.format(device_id))
+            ret=0
+        if ret==1:
+            await database.set_device_qrcode_version(device_id,latest_version)
 
 async def path_request_handler(websocket,frame_dict):
     """路径请求帧处理"""
