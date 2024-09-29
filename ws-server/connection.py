@@ -22,6 +22,11 @@ class Device_connections():
                     self.id_to_connection.pop(key)
                     break
     
+    async def update_id(self,old_id,new_id):
+        """更新连接的id"""
+        async with self.id_to_connection_lock:
+            self.id_to_connection[new_id]=self.id_to_connection.pop(old_id)
+    
     async def get_connection(self,device_id):
         """根据设备id获取连接"""
         async with self.id_to_connection_lock:

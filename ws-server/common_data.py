@@ -10,6 +10,9 @@ from PIL import Image
 import os
 import time
 import database
+import path_planning
+import networkx as nx
+import joblib
 
 emerg_msg_template='[紧急情况]院楼：{building}。楼层：{floor}。房间：{room}。'
 resp_msg_template='{doctor}已响应。'
@@ -250,6 +253,54 @@ class QRcode():
     async def get_latest_version(self):
         return self.latest_version
 
+class Map_path():
+    """存储路径相关数据"""
+    def __init__(self):
+        # 最新的二维码版本，年月日时分秒
+        self.G = nx.DiGraph()
+
+    async def init(self):
+        """初始化"""
+        await path_planning.add_nodes(self.G, "../../web_front/tiles/geojson/nodes.geojson")
+        await path_planning.add_edges(self.G, "../../web_front/tiles/geojson/edges.geojson")
+        
+    async def add_node(self,user_id,node_coor):
+        #把当前坐标加入有向图
+        print("cmd in add node")
+        await path_planning.connect_to_nearest(self.G, node_coor, user_id)
+        
+    async def get_path(self,start_node_id,end_node_id):
+        """获取路径并返回"""
+        "gt_path"
+        preferred_path =await path_planning.Dijkstra(self.G, start_node_id, end_node_id, "weight")
+        path_weight, path_length = await path_planning.details(self.G, preferred_path)
+        path_data=await path_planning.generate_geojson_path3(self.G, preferred_path)
+        #路径信息并没有在本地保存，若需要再添加
+        return path_weight, path_length, path_data
  
+class Map_location():
+    """存储beacon模型数据"""
+    def __init__(self):
+        self.scaler = joblib.load('scaler_v4.pkl')
+        self.model = joblib.load('knn_model_v4.pkl')
+
+    async def init(self):
+        """初始化"""
+        pass
+
+    async def get_location(self,RSSI_list):
+        """返回位置"""
+        #要是没有RSSI，返回负数坐标
+        if(all(item==0 for item in RSSI_list)):
+            return -999,-999
+        new_rssi_scaled = self.scaler.transform([RSSI_list])
+        predictions = self.model.predict(new_rssi_scaled)
+        print(predictions)
+        x=predictions[0][0]
+        y=predictions[0][1]
+        #路径信息并没有在本地保存，若需要再添加
+        return x,y
 emerg_data=Emergency_data()
 qr_code=QRcode()
+map_path=Map_path()
+map_location=Map_location()

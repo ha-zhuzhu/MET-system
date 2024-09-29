@@ -23,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s %(message)s",
     level=logging.INFO,
     filename='info.log', 
-    filemode='w'
+    filemode='a'
 )
 
 # logging.basicConfig(
@@ -56,7 +56,7 @@ async def handler(websocket):
 async def main():
     await map_data.update_status_by_database()
     await qr_code.init()
-    # 监听所有接口
+    await map_path.init()    # 监听所有接口
     async with websockets.serve(handler, "", 8008):
         await asyncio.Future()  # run forever
 

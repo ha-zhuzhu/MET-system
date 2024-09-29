@@ -14,6 +14,9 @@ import status
 from common_data import *
 import logging
 import device_frame
+import path_planning
+import get_location
+import networkx as nx
 
 MET_ID=2
 
@@ -295,15 +298,34 @@ async def path_request_handler(websocket,frame_dict):
     """路径请求帧处理"""
     start_node_id=frame_dict['data']['start_node_id']
     end_node_id=frame_dict['data']['end_node_id']
-    # 需要一个来自path_planning的函数
-    # 函数输入：start_node_id,end_node_id
-    # 函数生成路径，得到所需的path_data（json或者dict格式）
-    # 函数返回：path_data
-    # 类似下面这样
-    # path_data=await path_planning.get_path(start_node_id,end_node_id)
-    path_data={}
-    await user_frame.path_update(start_node_id,end_node_id,path_data)
+    
+    #可以放在init部分，只需生成一次创建有向图
+    # G = nx.DiGraph()
+    # path_planning.add_nodes(G, "../web_front/tiles/geojson/nodes.geojson")
+    # path_planning.add_edges(G, "../web_front/tiles/geojson/edges.geojson")  
+    # preferred_path =await path_planning.Dijkstra(G, start_node_id, end_node_id, "weight")
+    # path_weight, path_length = await path_planning.details(G, preferred_path)
+    # path_data=await path_planning.generate_geojson_path3(G, preferred_path)
+    path_weight, path_length,path_data=await map_path.get_path(start_node_id,end_node_id)
+    await user_frame.path_update(start_node_id,end_node_id,path_weight, path_length,path_data)
 
+async def navigate_request_handler(websocket,frame_dict):
+    """路径请求帧处理"""
+    start_node_coor=frame_dict['data']['start_node_coor']
+    end_node_id=frame_dict['data']['end_node_id']
+    print("in add node")
+    await map_path.add_node(frame_dict['source_id'],start_node_coor)
+    print("in get path")
+    path_weight, path_length,path_data=await map_path.get_path(frame_dict['source_id'],end_node_id)
+    await user_frame.path_update(frame_dict['source_id'],end_node_id,path_weight, path_length,path_data)
+
+
+async def get_location_handler(websocket,frame_dict):
+    """路径请求帧处理"""
+    RSSI_list=frame_dict['data']['rssi']
+    x,y=await map_location.get_location(RSSI_list)
+    await user_frame.location_update(websocket,frame_dict['source_id'],x,y)
+    
 async def handler(websocket, frame_dict, connection_added):
     """前端信息处理"""
     # message recieved without token verify
@@ -327,6 +349,10 @@ async def handler(websocket, frame_dict, connection_added):
         await request_upload_handler(websocket,frame_dict)
     elif frame_dict['type'] == 'path_request':
         await path_request_handler(websocket,frame_dict)
+    elif frame_dict['type'] == 'navigate_request':
+        await navigate_request_handler(websocket,frame_dict)
+    elif frame_dict['type'] == 'get_location':
+        await get_location_handler(websocket,frame_dict)
     else:
         # 未知信息帧
         await user_frame.request_response(websocket,frame_dict['source_id'],0,'frame type not recognized')

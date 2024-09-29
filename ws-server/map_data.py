@@ -30,6 +30,9 @@ icon_relative_path_dict={'menzhenlou':
 async def update_device_status(device_id,status):
     """更新设备状态"""
     location_dict=await database.get_device_location(device_id)
+    # 如果设备位置信息不完整，不更新
+    if location_dict['building_en'] is None or location_dict['floor'] is None:
+        return
     icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
     icon_relative_path=icon_relative_path_dict[location_dict['building_en']][location_dict['floor']]
     
@@ -69,11 +72,17 @@ async def update_status_by_database():
     device_to_icon_path={}
     user_to_icon_path={}
     for device_id,location_dict in device_to_location_dict.items():
-        icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
-        device_to_icon_path[device_id]=icon_path
+        try:
+            icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
+            device_to_icon_path[device_id]=icon_path
+        except KeyError:
+            print(f'设备{device_id}的位置信息不完整')
     for user_id,location_dict in user_to_location_dict.items():
-        icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
-        user_to_icon_path[user_id]=icon_path
+        try:
+            icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
+            user_to_icon_path[user_id]=icon_path
+        except:
+            print(f'用户{user_id}的位置信息不完整')
     icon_path_set=set(device_to_icon_path.values())|set(user_to_icon_path.values())
     for icon_path in icon_path_set:
         async with aiofile.async_open(icon_path,'r') as file:

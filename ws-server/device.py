@@ -38,10 +38,12 @@ async def register_handler(websocket, frame_dict):
         await device_frame.response(websocket, frame_dict['source_id'], 'err', 'register data error')
     if data['type'] not in ['alarm', 'aed', 'met', 'doc']:
         await device_frame.response(websocket, frame_dict['source_id'], 'err', 'device type error')
-    #TODO:connection 相关数据也应该修改
     # 更新数据库
+    print('here')
     new_id = await database.add_new_device(data['type'], data['mac'], status.button.standby.value)
-
+    print(new_id)
+    #connection 相关数据也应该修改
+    connection.device.update_id(frame_dict['source_id'],new_id)
     # 发送配置帧
     await device_frame.config(websocket, frame_dict['source_id'], {'id': new_id})
     frame_dict['source_id'] = new_id
@@ -104,8 +106,9 @@ async def qrcode_update(websocket,device_id):
     """更新二维码"""
     data_for_device=await qr_code.get_data_for_device()
     latest_version=await qr_code.get_latest_version()
+    # 应该对比二维码版本，决定更新  
     try:
-        ret=await device_frame.config(websocket,device_id,{"qrcode":{"width":132,"height":132,"data":data_for_device}})
+        ret=await device_frame.config(websocket,device_id,{"qrcode":"https://u.wechat.com/EL_WfiYtGUjkmiqeMwssvrE?s=2"})
     except:
         await connection.device.remove_connection(device_id)
         print('Config qrcode failed. Device {} not connected'.format(device_id))
@@ -128,6 +131,7 @@ async def handler(websocket, frame_dict,connection_added):
         await alarm_handler(websocket, frame_dict)
     elif frame_dict['type'] == 'config':
         await config_handler(websocket, frame_dict)
+    # 更新二维码
     await qrcode_update(websocket,frame_dict['source_id'])
 
 async def offline_handler(websocket):
@@ -138,15 +142,20 @@ async def offline_handler(websocket):
         map_data_dict={}    # 所有需要修改的地图相对路径，和数据
         # 修改设备状态
         icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
-        map_data_dict[icon_relative_path]=icon_data
-        # 修改emerg_data
-        if await emerg_data.is_set_in_alarm(device_id):
-            # 已经报过警了
-            await emerg_data.remove_alarm(device_id)
-        # 通知所有前端
-        for icon_relative_path,icon_data in map_data_dict.items():
-            map_source=icon_relative_path.split('/')[-1].split('.')[0]
-            await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
+        try:
+            map_data_dict[icon_relative_path]=icon_data
+            # 修改emerg_data
+            if await emerg_data.is_set_in_alarm(device_id):
+                # 已经报过警了
+                await emerg_data.remove_alarm(device_id)
+            # 通知所有前端
+            for icon_relative_path,icon_data in map_data_dict.items():
+                map_source=icon_relative_path.split('/')[-1].split('.')[0]
+                await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
+        except:
+            # 可能设备位置信息不完整
+            print('Device {} position information is incomplete'.format(device_id))
+
         # 从connection中删除
         await connection.device.remove_connection(websocket)
         print('Device {} offline'.format(device_id))

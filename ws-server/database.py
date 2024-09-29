@@ -1,6 +1,7 @@
 # 关于数据库的一些操作
 import asyncio
 import aiosqlite
+import logging
 
 DATABASE = 'data/device.db'
 
@@ -120,10 +121,21 @@ async def set_user_status(user_id,status):
 
 async def add_new_device(device_type, mac, status):
     """添加新设备"""
+    print(mac)
     async with aiosqlite.connect(DATABASE) as db:
+        # 判断是否有相同的mac，如果有则取该设备的id
+        async with db.execute("SELECT device_id FROM device WHERE mac = ?", (mac,)) as cursor:
+            result = await cursor.fetchone()
+        if result is not None:
+            logging.warning(f"重复注册！设备{mac}已经存在，id为{result[0]}")
+            return result[0]
+        # 没注册过，取最大的id
         async with db.execute("SELECT MAX(device_id) FROM device") as cursor:
             max_id = await cursor.fetchone()
-        new_id = max_id[0] + 1
+        if max_id is None:
+            new_id = 1
+        else:
+            new_id = max_id[0] + 1
         await db.execute("INSERT INTO device (device_id, type, mac, status) VALUES (?, ?, ?, ?)", (new_id, device_type, mac, status))
         await db.commit()
     return new_id
