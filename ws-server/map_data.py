@@ -3,33 +3,15 @@ import asyncio
 import database
 import aiofile
 import json
-
-icon_path_dict={'menzhenlou':
-                {1:'/home/pc/MET/web_front/tiles/geojson/men-zhen-lou/f1/men-zhen-lou_f1_status.geojson',
-                 2:'/home/pc/MET/web_front/tiles/geojson/men-zhen-lou/f2/men-zhen-lou_f2_status.geojson'
-                },
-                'laojizhenlou':
-                {
-                    1:'/home/pc/MET/web_front/tiles/geojson/lao-ji-zhen-lou/f1/lao-ji-zhen-lou_f1_status.geojson',
-                    2:'/home/pc/MET/web_front/tiles/geojson/lao-ji-zhen-lou/f2/lao-ji-zhen-lou_f2_status.geojson'
-                }
-                }
-# 给前端用的
-icon_relative_path_dict={'menzhenlou':
-                         {1:'/men-zhen-lou/f1/men-zhen-lou_f1_status.geojson',
-                          2:'/men-zhen-lou/f2/men-zhen-lou_f2_status.geojson'
-                          },
-                          'laojizhenlou':
-                          {
-                                1:'/lao-ji-zhen-lou/f1/lao-ji-zhen-lou_f1_status.geojson',
-                                2:'/lao-ji-zhen-lou/f2/lao-ji-zhen-lou_f2_status.geojson'
-                          }
-                         }
+from config_loader import GlobalConfigManager
 
 
 async def update_device_status(device_id,status):
     """更新设备状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    icon_path_dict=await config_loader.get_icon_path_dict()
     location_dict=await database.get_device_location(device_id)
+    icon_relative_path_dict=await config_loader.get_icon_relative_path_dict()
     # 如果设备位置信息不完整，不更新
     if location_dict['building_en'] is None or location_dict['floor'] is None:
         return
@@ -49,6 +31,9 @@ async def update_device_status(device_id,status):
 
 async def update_user_status(user_id,status):
     """更新用户状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    icon_path_dict=await config_loader.get_icon_path_dict()
+    icon_relative_path_dict=await config_loader.get_icon_relative_path_dict()
     location_dict=await database.get_user_location(user_id)
     icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
     icon_relative_path=icon_relative_path_dict[location_dict['building_en']][location_dict['floor']]
@@ -65,6 +50,8 @@ async def update_user_status(user_id,status):
     
 async def update_status_by_database():
     """根据数据库更新所有设备和用户状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    icon_path_dict=await config_loader.get_icon_path_dict()
     device_to_location_dict=await database.get_devices_location()
     user_to_location_dict=await database.get_users_location()
     device_to_status_dict=await database.get_devices_status()

@@ -2,11 +2,12 @@
 import asyncio
 import aiosqlite
 import logging
-
-DATABASE = 'data/device.db'
+from config_loader import GlobalConfigManager
 
 async def get_user_id(device_id):
     """从relation表中查找device_id对应的所有user_id"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT user_id FROM relation WHERE device_id=?", (device_id,)) as cursor:
             result= await cursor.fetchall()
@@ -15,6 +16,8 @@ async def get_user_id(device_id):
 
 async def get_device_location(device_id):
     """找到设备位置"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     location_dict = {}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT building,building_en,floor,room FROM device WHERE device_id = ?", (device_id,)) as cursor:
@@ -34,6 +37,8 @@ async def get_device_location(device_id):
 
 async def get_devices_location():
     """返回所有设备位置"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     device_to_location_dict={}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT device_id,building,building_en,floor,room FROM device") as cursor:
@@ -44,6 +49,8 @@ async def get_devices_location():
 
 async def get_devices_status():
     """返回所有设备状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     device_to_status_dict={}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT device_id,status FROM device") as cursor:
@@ -54,6 +61,8 @@ async def get_devices_status():
 
 async def get_users_location():
     """返回所有用户位置"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     user_to_location_dict={}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT user_id,building,building_en,floor,room FROM user") as cursor:
@@ -64,6 +73,8 @@ async def get_users_location():
 
 async def get_users_status():
     """返回所有用户状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     user_to_status_dict={}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT user_id,status FROM user") as cursor:
@@ -74,6 +85,8 @@ async def get_users_status():
 
 async def get_user_location(user_id):
     """找到用户位置"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     location_dict = {}
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT building,building_en,floor,room FROM user WHERE user_id = ?", (user_id,)) as cursor:
@@ -93,6 +106,8 @@ async def get_user_location(user_id):
 
 async def get_user_name(user_id):
     """找到用户姓名"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT name FROM user WHERE user_id = ?", (user_id,)) as cursor:
             name = await cursor.fetchone()
@@ -103,18 +118,24 @@ async def get_user_name(user_id):
 
 async def set_device_status(device_id,status):
     """设置设备状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         await db.execute("UPDATE device SET status = ? WHERE device_id = ?", (status, device_id))
         await db.commit()
 
 async def set_device_id(old_id, new_id):
     """设置设备ID"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         await db.execute("UPDATE device SET device_id = ? WHERE device_id = ?", (new_id, old_id))
         await db.commit()
 
 async def set_user_status(user_id,status):
     """设置用户状态"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         await db.execute("UPDATE user SET status = ? WHERE user_id = ?", (status, user_id))
         await db.commit()
@@ -122,6 +143,8 @@ async def set_user_status(user_id,status):
 async def add_new_device(device_type, mac, status):
     """添加新设备"""
     print(mac)
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         # 判断是否有相同的mac，如果有则取该设备的id
         async with db.execute("SELECT device_id FROM device WHERE mac = ?", (mac,)) as cursor:
@@ -142,6 +165,8 @@ async def add_new_device(device_type, mac, status):
 
 async def add_new_user(username,password,email,name,phone,role,token):
     """添加新用户"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         # 判断用户名是否已经存在
         async with db.execute("SELECT user_id FROM user WHERE username = ?", (username,)) as cursor:
@@ -158,6 +183,8 @@ async def add_new_user(username,password,email,name,phone,role,token):
     return 1
 
 async def user_login(username):
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     # 找到user表中，username列为uname的行，取出password,role,token,user_id,name,status
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT password,role,token,user_id,name,status FROM user WHERE username = ?", (username,)) as cursor:
@@ -169,6 +196,8 @@ async def user_login(username):
 
 async def user_token_login(user_id):
     # 找到token,role,name,status
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT token,role,name,status FROM user WHERE user_id = ?", (user_id,)) as cursor:
             result = await cursor.fetchone()
@@ -179,6 +208,8 @@ async def user_token_login(user_id):
 
 async def check_token_exist(token):
     """检查token是否存在"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT user_id FROM user WHERE token = ?", (token,)) as cursor:
             result = await cursor.fetchone()
@@ -189,6 +220,8 @@ async def check_token_exist(token):
 
 async def check_id_to_token(user_id,token):
     """检查id-token对是否正确"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT user_id FROM user WHERE user_id = ? AND token = ?", (user_id,token)) as cursor:
             result = await cursor.fetchone()
@@ -199,12 +232,16 @@ async def check_id_to_token(user_id,token):
         
 async def set_qrcode_version(version):
     """设置二维码版本"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         await db.execute("UPDATE version SET version = ? WHERE name = 'qrcode'", (version,))
         await db.commit()
 
 async def get_qrcode_version():
     """获取二维码版本"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT version FROM version WHERE name = 'qrcode'") as cursor:
             version = await cursor.fetchone()
@@ -217,6 +254,8 @@ async def get_qrcode_version():
         
 async def check_device_qrcode_version(device_id):
     """检查设备的qrcode版本是否是最新，是则返回1,否则返回0"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     latest_version=await get_qrcode_version()
     async with aiosqlite.connect(DATABASE) as db:
         async with db.execute("SELECT qrcode_version FROM device WHERE device_id = ?", (device_id,)) as cursor:
@@ -228,6 +267,8 @@ async def check_device_qrcode_version(device_id):
 
 async def set_device_qrcode_version(device_id,version):
     """设置设备目前的qrcode版本"""
+    config_loader = GlobalConfigManager.get_config_loader()
+    DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
         await db.execute("UPDATE device SET qrcode_version = ? WHERE device_id = ?", (version, device_id))
         await db.commit()

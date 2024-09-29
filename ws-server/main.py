@@ -13,6 +13,8 @@ import user
 import map_data
 import logging
 from common_data import *
+import argparse
+from config_loader import *
 
 # 本机ID
 LOCAL_ID = 1
@@ -53,7 +55,9 @@ async def handler(websocket):
             await device.offline_handler(websocket)
 
 
-async def main():
+async def main(env):
+    # 初始化config
+    config_loader = GlobalConfigManager.get_config_loader(env)
     await map_data.update_status_by_database()
     await qr_code.init()
     await map_path.init()    # 监听所有接口
@@ -62,4 +66,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description='Run the application in a specified environment.')
+    parser.add_argument('env', choices=['hospital_test'], help='The environment to run the application in.')
+    
+    args = parser.parse_args()
+    
+    asyncio.run(main(args.env))
