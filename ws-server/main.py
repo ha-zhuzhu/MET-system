@@ -61,13 +61,14 @@ async def main(env):
     await map_data.update_status_by_database()
     await qr_code.init()
     await map_path.init()    # 监听所有接口
+    await map_location.init() 
     async with websockets.serve(handler, "", 8008):
         await asyncio.Future()  # run forever
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the application in a specified environment.')
-    parser.add_argument('env', choices=['hospital_test'], help='The environment to run the application in.')
+    parser.add_argument('env', choices=['hospital_test','lab_test'], help='The environment to run the application in.')
     
     args = parser.parse_args()
     

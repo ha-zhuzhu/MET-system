@@ -74,6 +74,7 @@ async def alarm_handler(websocket, frame_dict):
     
     # 修改设备状态
     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.alarm.value)
+    print(icon_data)
     map_data_dict[icon_relative_path]=icon_data
     # 修改用户状态
     user_id_list=await emerg_data.get_user_id(device_id)
@@ -107,6 +108,9 @@ async def qrcode_update(websocket,device_id):
     data_for_device=await qr_code.get_data_for_device()
     latest_version=await qr_code.get_latest_version()
     # 应该对比二维码版本，决定更新  
+    # if latest_version==await database.get_qrcode_version(device_id):
+    #     # 二维码版本相同
+    #     return 0
     try:
         ret=await device_frame.config(websocket,device_id,{"qrcode":"https://u.wechat.com/EL_WfiYtGUjkmiqeMwssvrE?s=2"})
     except:
@@ -116,6 +120,7 @@ async def qrcode_update(websocket,device_id):
         ret=0
     if ret==1:
         await database.set_device_qrcode_version(device_id,latest_version)
+    return ret
 
 
 async def handler(websocket, frame_dict,connection_added):

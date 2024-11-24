@@ -71,28 +71,28 @@
 # import status
 # print(status.button.alarm.value)
 
-import cv2
-import pyzbar.pyzbar
-# from pyzbar.pyzbar import decode
+# import cv2
+# import pyzbar.pyzbar
+# # from pyzbar.pyzbar import decode
 
-def decode_qrcode(image_path):
-    # 读取图像
-    image = cv2.imread(image_path)
+# def decode_qrcode(image_path):
+#     # 读取图像
+#     image = cv2.imread(image_path)
 
-    # 解码二维码
-    decoded_objects = pyzbar.pyzbar.decode(image)
+#     # 解码二维码
+#     decoded_objects = pyzbar.pyzbar.decode(image)
     
-    for obj in decoded_objects:
-        print("Type:", obj.type)
-        print("Data:", obj.data.decode("utf-8"))
-        print("Position:", obj.rect)
+#     for obj in decoded_objects:
+#         print("Type:", obj.type)
+#         print("Data:", obj.data.decode("utf-8"))
+#         print("Position:", obj.rect)
         
-    return decoded_objects
+#     return decoded_objects
 
-# 示例使用
-decoded_objects = decode_qrcode('data/qrcode/raw/xieyufei.jpg')
-for obj in decoded_objects:
-    print(f"QR Code Data: {obj.data.decode('utf-8')}")
+# # 示例使用
+# decoded_objects = decode_qrcode('data/qrcode/raw/xieyufei.jpg')
+# for obj in decoded_objects:
+#     print(f"QR Code Data: {obj.data.decode('utf-8')}")
 
 
 # import qrcode
@@ -122,3 +122,48 @@ for obj in decoded_objects:
 # filename = "qrcode.png"
 # size = 132
 # create_qrcode(data, filename, size)
+
+
+# import base64
+
+# with open('data/qrcode/generate/20240719155448.bin','rb') as file:
+#     data=file.read()
+
+# # 编码为base16
+# data_base16=base64.b16encode(data).decode()
+# # 保存为txt
+# with open('20240719155448_base16.txt','w') as file:
+#     file.write(data_base16)
+
+# import sqlite3
+
+# database='data/device.db'
+
+# # 删除device表中，mac为'34:b7:da:9f:e7:cc'的行
+# def delete_same_mac():
+#     conn = sqlite3.connect(database)
+#     cursor = conn.cursor()
+#     cursor.execute("DELETE FROM device WHERE mac = '34:b7:da:9f:e7:cc'")
+#     conn.commit()
+#     conn.close()
+
+
+
+# def get_same_mac():
+#     conn = sqlite3.connect(database)
+#     cursor = conn.cursor()
+#     cursor.execute("SELECT * FROM device WHERE mac = '34:b7:da:9f:e7:cc'")
+#     result = cursor.fetchall()
+#     conn.close()
+#     return result
+
+# print(get_same_mac())
+
+# import json
+
+# with open('config.json','r') as file:
+#     data=json.load(file)
+
+# print(data.get('environments',{}).get('hospital_test',{})['icon_path'])
+
+

@@ -62,6 +62,20 @@ async def request_response(websocket,user_id,status,log=''):
                     },
         })
     await websocket.send(frame)
+    
+# async def button_alarmed(websocket,device_id,device_status,status,log=''):
+#     """发送请求响应"""
+#     frame=json.dumps(
+#         {'type':'button_alarmed',
+#          'source_id':1,
+#          'destination_id': device_id, 
+#          'timestamp':int(time.time()),
+#             'data':{'log':log,
+#                     'device_status':device_status,
+#                     'status':status
+#                     },
+#         })
+#     await websocket.send(frame)
 
 async def path_update(start_node_id,end_node_id,path_weight, path_length,path_data):
     """广播路径更新"""
@@ -79,7 +93,7 @@ async def path_update(start_node_id,end_node_id,path_weight, path_length,path_da
         })
     await connection.user.broadcast(frame)
 
-async def location_update(websocket,user_id,x,y):
+async def location_update(websocket,user_id,x,y,z):
     """发送请求位置响应"""
     frame=json.dumps(
         {'type':'location_update',
@@ -87,7 +101,8 @@ async def location_update(websocket,user_id,x,y):
          'destination_id': user_id, 
          'timestamp':int(time.time()),
             'data':{'x':x,
-                    'y':y
+                    'y':y,
+                    'z':z
                     },
         })
     await websocket.send(frame)

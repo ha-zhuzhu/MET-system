@@ -11,3 +11,5 @@ preferred_path = path_planning.Dijkstra(G, start_node, end_node, "weight")
 
 输出（可选）：沿途路径、路径权重/距离、绘制3d图、生成path.geojson文件
 
+path_planning.py在path_pplanning_file是旧的，只是给server2用，实际使用的在目录，也是叫path_planning
+

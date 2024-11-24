@@ -142,7 +142,7 @@ def extract_special_nodes(nodes):
     return special_nodes
 
 
-# 创建楼层间连接
+# 创建楼层间连接(z轴连接)
 def create_vertical_edges(special_nodes,edge_count):
     new_edges = []
     

@@ -22,6 +22,45 @@
                     "1": "/lao-ji-zhen-lou/f1/lao-ji-zhen-lou_f1_status.geojson",
                     "2": "/lao-ji-zhen-lou/f2/lao-ji-zhen-lou_f2_status.geojson"
                 }
+            },
+            "node_edge_path": {
+                "nodes": "../../web_front/tiles/geojson/nodes.geojson",
+                "edges": "../../web_front/tiles/geojson/edges.geojson"
+            },
+            "locationing_model_path": {
+                "scaler": "location/hospital/scaler_hospital_1020_v1.pkl",
+                "model": "location/hospital/knn_hospital_1020_v1.pkl",
+                "active_beacon":[226, 229, 233, 373, 376, 379, 387, 388, 390, 392, 417, 419, 2022,
+                2023, 2025, 2063, 2064, 2065, 2066, 2067, 2068, 2069, 2071, 2072, 2073, 2075, 2076, 
+                2077, 2078, 2079, 2112, 2113, 2115, 2704, 2705, 2708, 2709, 2710, 2711, 2717, 2719, 
+                2720, 2721, 2725, 2728, 2737, 2820, 2821, 2823, 2825, 2827, 2828, 2830, 2831, 2832, 
+                2833, 2836, 2838, 2839, 2842, 2850, 2852, 2856, 2857, 2858, 2860, 2862, 2863, 2866, 
+                2872, 2874, 2875, 2876, 2878, 2879, 3073, 3389, 3399, 3440, 3544, 3548, 3554, 3567, 
+                3572, 3581, 3595, 3597, 3603, 3604, 3609, 3618, 3625, 3640, 3785, 3895, 4074, 6799]
+            }
+        },
+        "lab_test": {
+            "database": "data/lab_test.db",
+            "icon_path": {
+                "dianzilou": {
+                    "3": "/home/pc/MET_lab/web_front/tiles/geojson/dian-zi-lou/f3/dian-zi-lou_f3_status.geojson",
+                    "1": "/home/pc/MET_lab/web_front/tiles/geojson/dian-zi-lou/f1/dian-zi-lou_f1_status.geojson"
+                }
+            },
+            "icon_relative_path": {
+                "dianzilou": {
+                    "3": "/dian-zi-lou/f3/dian-zi-lou_f3_status.geojson",
+                    "1": "/dian-zi-lou/f1/dian-zi-lou_f1_status.geojson"
+                }
+            },
+            "node_edge_path": {
+                "nodes": "../../../MET_lab/web_front/tiles/geojson/nodes.geojson",
+                "edges": "../../../MET_lab/web_front/tiles/geojson/edges.geojson"
+            },
+            "locationing_model_path": {
+                "scaler": "location/lab/scaler_1006_v1.pkl",
+                "model": "location/lab/knn_1006_v1.pkl",
+                "active_beacon":[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
             }
         }
     }

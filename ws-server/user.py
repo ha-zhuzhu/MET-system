@@ -15,10 +15,10 @@ from common_data import *
 import logging
 import device_frame
 import path_planning
-import get_location
+# import get_location
 import networkx as nx
 
-MET_ID=2
+MET_ID=[2]
 
 async def register_handler(websocket,frame_dict):
     """注册帧处理"""
@@ -102,7 +102,7 @@ async def request_handler(websocket,frame_dict):
         await user_frame.request_response(websocket,user_id,0,'token invalid')
         return
     
-    if user_id==MET_ID:
+    if user_id in MET_ID:
         # 请求帧来自MET中心
         if 'user_id' in frame_dict['data']:
             # 修改用户状态，只能改为offline, standby
@@ -128,7 +128,10 @@ async def request_handler(websocket,frame_dict):
             # 修改设备状态
             device_id=frame_dict['data']['device_id']
             device_status=frame_dict['data']['device_status']
-            print("id connection:",await connection.device.get_connection(device_id))
+            try:
+                print("id connection:",await connection.device.get_connection(device_id))
+            except:
+                print("device id {} not connected".format(device_id))
             # 发送配置帧
             try:
                 await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':device_status})                      
@@ -193,6 +196,9 @@ async def request_handler(websocket,frame_dict):
             
             # 返回 request_response
             await user_frame.request_response(websocket,user_id,1)
+            # 返回 button_alarmed
+            #用于告诉哪个team device，其硬件按钮被触发
+            # await user_frame.button_alarmed(websocket,device_id,device_status,1)
     else:
         # 请求帧来自医生
         device_id=frame_dict['data']['device_id']
@@ -264,6 +270,32 @@ async def request_handler(websocket,frame_dict):
                     map_data_dict[icon_relative_path]=icon_data
                 # 返回 request_response
                 await user_frame.request_response(websocket,user_id,1)
+            elif device_status==status.button.standby.value:
+                """医生关闭报警，恢复就绪状态"""
+                # 修改emerg_data
+                await emerg_data.remove_alarm(device_id)
+                # 修改地图中医生为standby
+                icon_relative_path,icon_data=await map_data.update_user_status(user_id,status.doctor.standby.value)
+                map_data_dict[icon_relative_path]=icon_data
+                # 修改数据库
+                await database.set_user_status(user_id,status.doctor.standby.value)
+                # 修改地图中设备为standby
+                icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.standby.value)
+                map_data_dict[icon_relative_path]=icon_data
+                # 修改数据库
+                await database.set_device_status(device_id,status.button.standby.value)
+                # 通知设备
+                try:
+                    await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.standby.value})
+                except:
+                    await connection.device.remove_connection(device_id)
+                    print('Config to standby status failed. Device {} not connected'.format(device_id))
+                    logging.debug('Config to standby status failed. Device {} not connected'.format(device_id))
+                    # 修改地图
+                    icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
+                    map_data_dict[icon_relative_path]=icon_data
+                # 返回 request_response
+                await user_frame.request_response(websocket,user_id,1)
             else:
                 # 不是医生响应报警，也不是医生取消响应
                 await user_frame.request_response(websocket,user_id,0,'device_status invalid')
@@ -322,9 +354,9 @@ async def navigate_request_handler(websocket,frame_dict):
 
 async def get_location_handler(websocket,frame_dict):
     """路径请求帧处理"""
-    RSSI_list=frame_dict['data']['rssi']
-    x,y=await map_location.get_location(RSSI_list)
-    await user_frame.location_update(websocket,frame_dict['source_id'],x,y)
+    RSSI_dic=frame_dict['data']['rssi']
+    x,y,z=await map_location.get_location(RSSI_dic)
+    await user_frame.location_update(websocket,frame_dict['source_id'],x,y,z)
     
 async def handler(websocket, frame_dict, connection_added):
     """前端信息处理"""
