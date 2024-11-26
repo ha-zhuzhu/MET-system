@@ -106,39 +106,39 @@ async def connect_to_nearest(G, new_point, user_id, point_pos_attr='pos'):
     # 如果节点中已经存在 user_id，则删除该节点及其相关边
     if G.has_node(user_id):
         G.remove_node(user_id)
-    print("start connect")
+    # print("start connect")
     # 提取图中所有节点及其坐标
     nodes = list(G.nodes)
     node_positions = np.array([G.nodes[node][point_pos_attr] for node in nodes])
     # 计算新点到每个节点的距离
-    print("node_positions")
+    # print("node_positions")
     try:
         distances = distance.cdist([new_point], node_positions, metric='euclidean')
     except Exception as e:
     # 捕获所有其他异常
         print(f"An unexpected error occurred: {e}")
     
-    print(distances)
+    # print(distances)
     nearest_index = np.argmin(distances)  # 找到最近节点的索引
-    print(nearest_index)
+    # print(nearest_index)
     nearest_node = nodes[nearest_index]   # 获取最近的节点
-    print("2")
+    # print("2")
     # 添加新节点到图中，使用传入的 user_id
     G.add_node(
         user_id,
         pos=tuple(new_point),
         building_name="men-zhen-lou",  # 可以根据需求调整
         name="user_location",
-        floor="1"  # 根据需要调整
+        floor=str(new_point[2])  # 根据需要调整
     )
-    print("3")
+    # print("3")
 
     # 计算权重0
     weight = 1#await calculate_weight(properties)
     
     # 添加从新节点到最近节点的边
     G.add_edge(user_id, nearest_node, weight=weight, direction="one-way")
-    print("end connect")
+    # print("end connect")
     #G.add_edge(nearest_node, user_id, weight=1.0, direction="one-way")
 
     #return user_id, nearest_node
@@ -158,6 +158,17 @@ async def details(G, path):
     # 获取路径上的距离信息
     total_distance = 0
     total_weight = 0
+    # print("in detail")
+    # print(path)
+    # with open('lp.txt', 'a+', encoding='utf-8') as f:
+    #     f.write('New Test')
+    #     f.write('\n')
+    #     f.write(path)
+    #     f.write('\n')
+    
+    # print(path)
+    # print(zip(path[:-1], path[1:]))
+    # print('212')
     for u, v in zip(path[:-1], path[1:]):  # 用于节点列表生成边列表
         if G.has_edge(u, v):
             edge_data = G[u][v]
@@ -234,10 +245,11 @@ async def generate_geojson_path3(G, shortest_path):
     grouped_paths = defaultdict(list)
 
     # 按楼层，建筑物，将node分组，
+    # 将同一楼层，建筑物的网络append进去，但此时忽略了不同楼层，不同建筑物的网络联系
     for pos, building_name, floor in path_data:
         grouped_paths[(building_name, floor)].append(pos)
 
-    # 特别获得楼层连接与建筑物的连接点
+    # 特别获得楼层连接与建筑物的连接点，所以在这里添加缺失的联系
     for i in range(len(path_data) - 1):
         current_pos, current_building, current_floor = path_data[i]
         next_pos, next_building, next_floor = path_data[i + 1]
@@ -269,19 +281,19 @@ async def generate_geojson_path3(G, shortest_path):
                 },
             )
             features.append(feature)
-    feature1 = Feature(
-        geometry=Point(start_node),
-        properties={"node": "start_node",
-                    "icon": "s_doctor_2",
-                    "draw":True},
-    )
+    # feature1 = Feature(
+    #     geometry=Point(start_node),
+    #     properties={"node": "start_node",
+    #                 "icon": "s_doctor_3",
+    #                 "draw":True},
+    # )
     feature2 = Feature(
         geometry=Point(end_node),
         properties={"node": "end_node",
-                    "icon": "s_doctor_3",
+                    "icon": "location_end",
                     "draw":True},
     )
-    features.append(feature1)
+    # features.append(feature1)
     features.append(feature2)
     shortest_path_geojson = FeatureCollection(features)
 

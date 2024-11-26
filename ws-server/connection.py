@@ -1,21 +1,25 @@
 # device和user的connections
 import asyncio
 import websockets
+import logging
 
 class Device_connections():
     """设备连接"""
     def __init__(self):
+        self.created=0
         self.id_to_connection={}
         self.id_to_connection_lock=asyncio.Lock()
 
     async def add_connection(self,device_id,websocket):
         """添加连接"""
-        print('Add connection:',device_id,websocket)
+        logging.info("Add connection, device_id:{},websocket:{}".format(device_id,websocket))
+        self.created=1
         async with self.id_to_connection_lock:
             self.id_to_connection[device_id]=websocket
 
     async def remove_connection(self,websocket):
         """移除连接"""
+        logging.info("Remove connection, websocket:{}".format(websocket))
         async with self.id_to_connection_lock:
             for key,value in self.id_to_connection.items():
                 if value==websocket:
@@ -129,5 +133,5 @@ class User_connections():
     #                 self.id_to_connections.pop(user_id)
 
 
-device=Device_connections()
-user=User_connections()
+device_connections=Device_connections()
+user_connections=User_connections()

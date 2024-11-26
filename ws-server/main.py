@@ -15,6 +15,8 @@ import logging
 from common_data import *
 import argparse
 from config_loader import *
+from BC25 import bc25
+from A7670C import a7670c
 
 # 本机ID
 LOCAL_ID = 1
@@ -22,7 +24,7 @@ MET_ID=2
 DATABASE = 'data/device.db'
 
 logging.basicConfig(
-    format="%(asctime)s %(message)s",
+    format="%(asctime)s %(levelname)s %(message)s",
     level=logging.INFO,
     filename='info.log', 
     filemode='a'
@@ -38,17 +40,19 @@ async def handler(websocket):
     is_user=0
     try:
         async for frame in websocket:
-            print("Received:", frame)
             logging.info("Received:{}".format(frame))
+            logging.info("websocket:{}".format(websocket))
             frame_dict = json.loads(frame)
             if 'sender' in frame_dict.keys():
                 # 用户帧
                 is_user=1
-                await user.handler(websocket,frame_dict,connection_added)
+                connection_added=await user.handler(websocket,frame_dict,connection_added)
             else:
                 # 设备帧
-                await device.handler(websocket,frame_dict,connection_added)
-    finally:
+                connection_added=await device.handler(websocket,frame_dict,connection_added)
+                logging.info("connection_added:{}".format(connection_added))
+    except websockets.ConnectionClosed:
+        logging.info("Connection closed from {}".format(websocket))
         if is_user:
            await user.offline_handler(websocket)
         else:
@@ -61,13 +65,16 @@ async def main(env):
     await map_data.update_status_by_database()
     await qr_code.init()
     await map_path.init()    # 监听所有接口
+    await map_location.init() 
+    await bc25.start()
+    await a7670c.start()
     async with websockets.serve(handler, "", 8008):
         await asyncio.Future()  # run forever
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the application in a specified environment.')
-    parser.add_argument('env', choices=['hospital_test'], help='The environment to run the application in.')
+    parser.add_argument('env', choices=['hospital_test','lab_test'], help='The environment to run the application in.')
     
     args = parser.parse_args()
     

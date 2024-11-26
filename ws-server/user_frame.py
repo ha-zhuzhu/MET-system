@@ -3,7 +3,8 @@ import asyncio
 import websockets
 import json
 import time
-import connection
+from connection import user_connections
+import logging
 
 
 async def map_update(icon_relative_path,icon_data,map_source,message_list):
@@ -20,7 +21,8 @@ async def map_update(icon_relative_path,icon_data,map_source,message_list):
                     'message':message_list
                     },
         })
-    await connection.user.broadcast(frame)
+    logging.info('User broadcast:{}'.format(frame))
+    await user_connections.broadcast(frame)
 
 async def register_response(websocket,status):
     """发送注册响应"""
@@ -32,6 +34,7 @@ async def register_response(websocket,status):
             'data':{'status':status
                     },
         })
+    logging.info('Sent:{}'.format(frame))
     await websocket.send(frame)
 
 async def login_response(websocket,user_id,status,page_type,token,name):
@@ -48,6 +51,7 @@ async def login_response(websocket,user_id,status,page_type,token,name):
                     'name':name
                     },
         })
+    logging.info('Sent:{}'.format(frame))
     await websocket.send(frame)
 
 async def request_response(websocket,user_id,status,log=''):
@@ -61,7 +65,22 @@ async def request_response(websocket,user_id,status,log=''):
                     'status':status
                     },
         })
+    logging.info('Sent:{}'.format(frame))
     await websocket.send(frame)
+    
+# async def button_alarmed(websocket,device_id,device_status,status,log=''):
+#     """发送请求响应"""
+#     frame=json.dumps(
+#         {'type':'button_alarmed',
+#          'source_id':1,
+#          'destination_id': device_id, 
+#          'timestamp':int(time.time()),
+#             'data':{'log':log,
+#                     'device_status':device_status,
+#                     'status':status
+#                     },
+#         })
+#     await websocket.send(frame)
 
 async def path_update(start_node_id,end_node_id,path_weight, path_length,path_data):
     """广播路径更新"""
@@ -77,9 +96,10 @@ async def path_update(start_node_id,end_node_id,path_weight, path_length,path_da
                     'path_data':path_data
                     },
         })
-    await connection.user.broadcast(frame)
+    logging.info('User broadcast:{}'.format(frame))
+    await user_connections.broadcast(frame)
 
-async def location_update(websocket,user_id,x,y):
+async def location_update(websocket,user_id,x,y,z):
     """发送请求位置响应"""
     frame=json.dumps(
         {'type':'location_update',
@@ -87,7 +107,9 @@ async def location_update(websocket,user_id,x,y):
          'destination_id': user_id, 
          'timestamp':int(time.time()),
             'data':{'x':x,
-                    'y':y
+                    'y':y,
+                    'z':z
                     },
         })
+    logging.info('Sent:{}'.format(frame))
     await websocket.send(frame)

@@ -3,7 +3,7 @@ import asyncio
 import websockets
 import json
 import time
-import connection
+from connection import user_connections, device_connections
 import hashlib
 import database
 import user_frame
@@ -15,10 +15,10 @@ from common_data import *
 import logging
 import device_frame
 import path_planning
-import get_location
+# import get_location
 import networkx as nx
 
-MET_ID=2
+MET_ID=[2]
 
 async def register_handler(websocket,frame_dict):
     """注册帧处理"""
@@ -49,7 +49,7 @@ async def login_handler(websocket,frame_dict):
             # 登陆成功
             # 暂时不根据时间更新token，直接返回
             await user_frame.login_response(websocket,result[3],1,result[1],result[2],result[4])
-            await connection.user.add_id_connection(result[3],websocket)
+            await user_connections.add_id_connection(result[3],websocket)
             # 如果用户状态为offline，则改为standby
             if result[5]==status.doctor.offline.value:
                 # 不用修改地图 地图上没有doctor
@@ -83,7 +83,7 @@ async def token_login_handler(websocket,frame_dict):
                 # map_data_dict={icon_relative_path:icon_data}
                 # 修改数据库
                 await database.set_user_status(user_id,status.doctor.standby.value)
-                await connection.user.add_id_connection(user_id,websocket)
+                await user_connections.add_id_connection(user_id,websocket)
                 # 通知所有前端
                 # for icon_relative_path,icon_data in map_data_dict.items():
                 #     map_source=icon_relative_path.split('/')[-1].split('.')[0]
@@ -102,17 +102,16 @@ async def request_handler(websocket,frame_dict):
         await user_frame.request_response(websocket,user_id,0,'token invalid')
         return
     
-    if user_id==MET_ID:
+    if user_id in MET_ID:
         # 请求帧来自MET中心
         if 'user_id' in frame_dict['data']:
             # 修改用户状态，只能改为offline, standby
-            user_id=frame_dict['data']['user_id']
+            user_id=int(frame_dict['data']['user_id'])
             user_status=frame_dict['data']['user_status']
             if user_status!=status.button.offline.value and user_status!=status.button.standby.value:
                 # 不是offline或standby
                 await user_frame.request_response(websocket,user_id,0,'user_status invalid')
-                print('user_status:',user_status,'not recognized')
-                logging.debug('user_status:{} not recognized'.format(user_status))
+                logging.warning('user_status:{} not recognized'.format(user_status))
             else:
                 # 修改地图
                 icon_relative_path,icon_data=await map_data.update_user_status(user_id,user_status)
@@ -126,16 +125,18 @@ async def request_handler(websocket,frame_dict):
 
         if 'device_id' in frame_dict['data']:
             # 修改设备状态
-            device_id=frame_dict['data']['device_id']
+            device_id=int(frame_dict['data']['device_id'])
             device_status=frame_dict['data']['device_status']
-            print("id connection:",await connection.device.get_connection(device_id))
+            try:
+                logging.info("id connection:",await device_connections.get_connection(device_id))
+            except:
+                logging.info("Device id {} not connected, status change failed".format(device_id))
             # 发送配置帧
             try:
-                await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':device_status})                      
+                await device_frame.config(await device_connections.get_connection(device_id),device_id,{'status':device_status})                      
             except:
-                await connection.device.remove_connection(device_id)
-                print('Config status failed. Device {} not connected'.format(device_id))
-                logging.debug('Config status failed. Device {} not connected'.format(device_id))
+                await device_connections.remove_connection(device_id)
+                logging.info('Config status failed. Device {} not connected'.format(device_id))
                 # 修改地图
                 icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                 map_data_dict[icon_relative_path]=icon_data
@@ -171,36 +172,36 @@ async def request_handler(websocket,frame_dict):
             # 若有响应，则设备状态改为响应
             if device_status==status.button.doc_response.value:
                 try:
-                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
+                    await device_frame.response(await device_connections.get_connection(device_id),device_id,'doc')
                 except:
-                    await connection.device.remove_connection(device_id)
-                    print('Config to doc_response status failed. Device {} not connected'.format(device_id))
-                    logging.debug('Config to responsed status failed. Device {} not connected'.format(device_id))
+                    await device_connections.remove_connection(device_id)
+                    logging.info('Config to responsed status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
 
             if device_status==status.button.aed_response.value:
                 try:
-                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'aed')
+                    await device_frame.response(await device_connections.get_connection(device_id),device_id,'aed')
                 except:
-                    await connection.device.remove_connection(device_id)
-                    print('Config to aed_response status failed. Device {} not connected'.format(device_id))
-                    logging.debug('Config to aed_response status failed. Device {} not connected'.format(device_id))
+                    await device_connections.remove_connection(device_id)
+                    logging.info('Config to aed_response status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
             
             # 返回 request_response
             await user_frame.request_response(websocket,user_id,1)
+            # 返回 button_alarmed
+            #用于告诉哪个team device，其硬件按钮被触发
+            # await user_frame.button_alarmed(websocket,device_id,device_status,1)
     else:
         # 请求帧来自医生
-        device_id=frame_dict['data']['device_id']
+        device_id=int(frame_dict['data']['device_id'])
         device_status=frame_dict['data']['device_status']
-        print("here")
         if not await emerg_data.check_user_device(user_id,device_id):
             # 医生不负责该设备
-            print('user_id:',user_id,'device_id:',device_id,'not responsible for this device')
+            logging.warning('User {} not responsible for device {}'.format(user_id,device_id))
             await user_frame.request_response(websocket,user_id,0,'doctor not responsible for this device')
         else:
             # 医生负责该设备
@@ -208,8 +209,7 @@ async def request_handler(websocket,frame_dict):
             name=await database.get_user_name(user_id)
             if name is None:
                 name='未名'
-                print('user_id:',user_id,'name not found')
-                logging.info('user_id:{} name not found'.format(user_id))
+                logging.warning('user_id:{} name not found'.format(user_id))
             if device_status==status.button.doc_response.value:
                 # 医生试图响应报警
                 # 修改emerg_data
@@ -224,11 +224,10 @@ async def request_handler(websocket,frame_dict):
                 await database.set_user_status(user_id,status.doctor.response.value)
                 # 通知设备
                 try:
-                    await device_frame.response(await connection.device.get_connection(device_id),device_id,'doc')
+                    await device_frame.response(await device_connections.get_connection(device_id),device_id,'doc')
                 except:
-                    await connection.device.remove_connection(device_id)
-                    print('Config to doc_response status failed. Device {} not connected'.format(device_id))
-                    logging.debug('Config to doc_response status failed. Device {} not connected'.format(device_id))
+                    await device_connections.remove_connection(device_id)
+                    logging.info('Config to doc_response status failed. Device {} not connected'.format(device_id))
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
@@ -249,11 +248,10 @@ async def request_handler(websocket,frame_dict):
                     # TODO：没有考虑AED的响应，只考虑了人
                     # 通知设备
                     try:
-                        await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.alarm.value})
+                        await device_frame.config(await device_connections.get_connection(device_id),device_id,{'status':status.button.alarm.value})
                     except:
-                        await connection.device.remove_connection(device_id)
-                        print('Config to alarm status failed. Device {} not connected'.format(device_id))
-                        logging.debug('Config to alarm status failed. Device {} not connected'.format(device_id))
+                        await device_connections.remove_connection(device_id)
+                        logging.info('Config to alarm status failed. Device {} not connected'.format(device_id))
                         # 修改地图
                         icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                         map_data_dict[icon_relative_path]=icon_data
@@ -264,11 +262,35 @@ async def request_handler(websocket,frame_dict):
                     map_data_dict[icon_relative_path]=icon_data
                 # 返回 request_response
                 await user_frame.request_response(websocket,user_id,1)
+            elif device_status==status.button.standby.value:
+                """医生关闭报警，恢复就绪状态"""
+                # 修改emerg_data
+                await emerg_data.remove_alarm(device_id)
+                # 修改地图中医生为standby
+                icon_relative_path,icon_data=await map_data.update_user_status(user_id,status.doctor.standby.value)
+                map_data_dict[icon_relative_path]=icon_data
+                # 修改数据库
+                await database.set_user_status(user_id,status.doctor.standby.value)
+                # 修改地图中设备为standby
+                icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.standby.value)
+                map_data_dict[icon_relative_path]=icon_data
+                # 修改数据库
+                await database.set_device_status(device_id,status.button.standby.value)
+                # 通知设备
+                try:
+                    await device_frame.config(await device_connections.get_connection(device_id),device_id,{'status':status.button.standby.value})
+                except:
+                    await device_connections.remove_connection(device_id)
+                    logging.info('Config to standby status failed. Device {} not connected'.format(device_id))
+                    # 修改地图
+                    icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
+                    map_data_dict[icon_relative_path]=icon_data
+                # 返回 request_response
+                await user_frame.request_response(websocket,user_id,1)
             else:
                 # 不是医生响应报警，也不是医生取消响应
                 await user_frame.request_response(websocket,user_id,0,'device_status invalid')
-                print('device_status:',device_status,'not recognized')
-                logging.info('device_status:{} not recognized'.format(device_status))
+                logging.warning('device_status:{} not recognized'.format(device_status))
             
     # 通知所有前端
     for icon_relative_path,icon_data in map_data_dict.items():
@@ -282,14 +304,13 @@ async def request_upload_handler(websocket,frame_dict):
     latest_version=await qr_code.get_latest_version()
 
     # 通知所有在线设备
-    id_to_connection=await connection.device.get_id_to_connection()
+    id_to_connection=await device_connections.get_id_to_connection()
     for device_id,websocket in id_to_connection.items():
         try:
             ret=await device_frame.config(websocket,device_id,{"qrcode":{"width":132,"height":132,"data":data_for_device}})
         except:
-            await connection.device.remove_connection(device_id)
-            print('Config qrcode failed. Device {} not connected'.format(device_id))
-            logging.debug('Config qrcode failed. Device {} not connected'.format(device_id))
+            await device_connections.remove_connection(device_id)
+            logging.info('Config qrcode failed. Device {} not connected'.format(device_id))
             ret=0
         if ret==1:
             await database.set_device_qrcode_version(device_id,latest_version)
@@ -322,15 +343,15 @@ async def navigate_request_handler(websocket,frame_dict):
 
 async def get_location_handler(websocket,frame_dict):
     """路径请求帧处理"""
-    RSSI_list=frame_dict['data']['rssi']
-    x,y=await map_location.get_location(RSSI_list)
-    await user_frame.location_update(websocket,frame_dict['source_id'],x,y)
+    RSSI_dic=frame_dict['data']['rssi']
+    x,y,z=await map_location.get_location(RSSI_dic)
+    await user_frame.location_update(websocket,frame_dict['source_id'],x,y,z)
     
 async def handler(websocket, frame_dict, connection_added):
     """前端信息处理"""
     # message recieved without token verify
     if connection_added == 0:
-        await connection.user.add_connection(websocket)
+        await user_connections.add_connection(websocket)
         connection_added = 1
     if frame_dict['type'] == 'register':
         # 注册帧
@@ -356,11 +377,12 @@ async def handler(websocket, frame_dict, connection_added):
     else:
         # 未知信息帧
         await user_frame.request_response(websocket,frame_dict['source_id'],0,'frame type not recognized')
+    return connection_added
 
 async def offline_handler(websocket):
     """掉线处理"""
     map_data_dict={}
-    user_id=await connection.user.remove_connection(websocket)
+    user_id=await user_connections.remove_connection(websocket)
     if user_id:
         # 修改地图
         icon_relative_path,icon_data=await map_data.update_user_status(user_id,status.doctor.offline.value)
@@ -372,5 +394,4 @@ async def offline_handler(websocket):
         for icon_relative_path,icon_data in map_data_dict.items():
             map_source=icon_relative_path.split('/')[-1].split('.')[0]
             await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
-        print("User {} offline".format(user_id))
-        logging.debug("User {} offline".format(user_id))
+        logging.info("User {} offline".format(user_id))

@@ -34,6 +34,18 @@ class ConfigLoader:
             self.set_environment()
         env_config = self.config['environments'].get(self.env, {})
         return env_config.get('icon_relative_path', {})
+    
+    async def get_node_edge_path_dict(self):
+        if not self.env:
+            self.set_environment()
+        env_config = self.config['environments'].get(self.env, {})
+        return env_config.get('node_edge_path', {})
+    
+    async def get_locationing_model_path_dict(self):
+        if not self.env:
+            self.set_environment()
+        env_config = self.config['environments'].get(self.env, {})
+        return env_config.get('locationing_model_path', {})
 
 class GlobalConfigManager:
     _config_loader_instance = None

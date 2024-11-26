@@ -4,7 +4,6 @@ import json
 import time
 import binascii
 import logging
-import connection
 
 # 本机ID
 LOCAL_ID = 1
@@ -35,27 +34,32 @@ async def make_frame(type, destination_id, data):
 async def send_frame(websocket, frame, timeout=60, retry=3):
     """发送帧"""
     success = False
-    while (not success and retry > 0):
-        await websocket.send(frame)
-        print('Sent:', frame)
-        try:
-            recv_frame = await asyncio.wait_for(websocket.recv(), timeout=timeout)
-            print('Received:', recv_frame)
-            recv_frame_dict = json.loads(recv_frame)
-            if recv_frame_dict['data']['type'] == 'ack':
-                success = True
-        except asyncio.TimeoutError:
-            print('device send frame timeout')
-            logging.debug('device send frame timeout')
-        except Exception as e:
-            print(e)
-        finally:
-            retry -= 1
+    await websocket.send(frame)
+    logging.info('Sent:{}'.format(frame))
+    # print('Sent:', frame)
 
-    if not success:
-        print('Send frame failed')
-        logging.debug('device send frame timeout')
-        return 0
+    # while (not success and retry > 0):
+    #     await websocket.send(frame)
+    #     print('Sent:', frame)
+    #     try:
+    #         # TODO：和整个系统一直接收帧的逻辑有些矛盾
+    #         recv_frame = await asyncio.wait_for(websocket.recv(), timeout=timeout)
+    #         print('Received:', recv_frame)
+    #         recv_frame_dict = json.loads(recv_frame)
+    #         if recv_frame_dict['data']['type'] == 'ack':
+    #             success = True
+    #     except asyncio.TimeoutError:
+    #         print('device send frame timeout')
+    #         logging.debug('device send frame timeout')
+    #     except Exception as e:
+    #         print(e)
+    #     finally:
+    #         retry -= 1
+
+    # if not success:
+    #     print('Send frame failed')
+    #     logging.debug('device send frame timeout')
+    #     return 0
     return 1
 
 

@@ -142,7 +142,6 @@ async def set_user_status(user_id,status):
 
 async def add_new_device(device_type, mac, status):
     """添加新设备"""
-    print(mac)
     config_loader = GlobalConfigManager.get_config_loader()
     DATABASE = await config_loader.get_database()
     async with aiosqlite.connect(DATABASE) as db:
@@ -150,7 +149,7 @@ async def add_new_device(device_type, mac, status):
         async with db.execute("SELECT device_id FROM device WHERE mac = ?", (mac,)) as cursor:
             result = await cursor.fetchone()
         if result is not None:
-            logging.warning(f"重复注册！设备{mac}已经存在，id为{result[0]}")
+            logging.info(f"重复注册！设备{mac}已经存在，id为{result[0]}")
             return result[0]
         # 没注册过，取最大的id
         async with db.execute("SELECT MAX(device_id) FROM device") as cursor:

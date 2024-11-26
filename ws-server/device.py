@@ -5,9 +5,10 @@ import database
 import map_data
 import status
 import user_frame
-import connection
+from connection import device_connections
 import logging
 import device_frame
+from A7670C import a7670c
 
 
 async def check_frame(websocket, frame_dict):
@@ -39,11 +40,10 @@ async def register_handler(websocket, frame_dict):
     if data['type'] not in ['alarm', 'aed', 'met', 'doc']:
         await device_frame.response(websocket, frame_dict['source_id'], 'err', 'device type error')
     # 更新数据库
-    print('here')
     new_id = await database.add_new_device(data['type'], data['mac'], status.button.standby.value)
-    print(new_id)
+    logging.info("Register new device {} with type {} and mac {}".format(new_id, data['type'], data['mac']))
     #connection 相关数据也应该修改
-    connection.device.update_id(frame_dict['source_id'],new_id)
+    device_connections.update_id(frame_dict['source_id'],new_id)
     # 发送配置帧
     await device_frame.config(websocket, frame_dict['source_id'], {'id': new_id})
     frame_dict['source_id'] = new_id
@@ -57,10 +57,15 @@ async def alarm_handler(websocket, frame_dict):
     global online_users
     data = frame_dict['data']
     # 检查报警数据
-    if "type" not in data or "timestamp" not in data or "location" not in data:
-        await device_frame.response(websocket, frame_dict['source_id'], 'err', 'alarm data error')
-
-    device_id=frame_dict['source_id']
+    if websocket!=None:
+        # 来自websocket
+        if "type" not in data or "timestamp" not in data or "location" not in data:
+            await device_frame.response(websocket, frame_dict['source_id'], 'err', 'alarm data error')
+        device_id=frame_dict['source_id']
+    else:
+        # 来自BC25
+        device_id=int(f"{frame_dict['params']['alarm_id']}")
+    
     if await emerg_data.is_set_in_alarm(device_id):
         # 已经报过警了
         return 0    
@@ -74,7 +79,11 @@ async def alarm_handler(websocket, frame_dict):
     
     # 修改设备状态
     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.alarm.value)
-    map_data_dict[icon_relative_path]=icon_data
+    if icon_relative_path=='':
+        # 设备位置信息不完整
+        logging.error(f'无法更新设备{device_id}的状态，因为设备位置信息不完整')
+    else:
+        map_data_dict[icon_relative_path]=icon_data
     # 修改用户状态
     user_id_list=await emerg_data.get_user_id(device_id)
     for user_id in user_id_list:
@@ -86,6 +95,22 @@ async def alarm_handler(websocket, frame_dict):
         map_source=icon_relative_path.split('/')[-1].split('.')[0]
         await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
 
+    # 发送短信
+    # 获取按钮位置
+    location_dict=await database.get_device_location(device_id)
+    if location_dict['building'] is None or location_dict['floor'] is None or location_dict['room'] is None:
+        logging.error(f'数据库中设备{device_id}的位置信息不完整')
+    if location_dict['building'] is None:
+        location_dict['building'] = '未知'
+    if location_dict['floor'] is None:
+        location_dict['floor'] = '未知'
+    if location_dict['room'] is None:
+        location_dict['room'] = '未知'
+    msg=f'设备{device_id}发生报警，位置：【{location_dict["building"]}】【{location_dict["floor"]}楼】【{location_dict["room"]}房间】'
+    await a7670c.message('8613438233066',msg)
+    # 拨打电话
+    call_msg=f'发生报警，{location_dict["building"]}{location_dict["floor"]}楼{location_dict["room"]}房间{location_dict["building"]}{location_dict["floor"]}楼{location_dict["room"]}房间{location_dict["building"]}{location_dict["floor"]}楼{location_dict["room"]}房间'
+    await a7670c.call('13438233066',call_msg)
 
 async def config_handler(websocket, frame_dict):
     """处理接收到的配置帧"""
@@ -100,22 +125,26 @@ async def config_handler(websocket, frame_dict):
     # TODO: 还需要检验id；更新所有和id相关的数据结构
     if "id" in data:
         # 很复杂，暂时不做
-        print('Not implemented yet')
+        # print('Not implemented yet')
+        pass
 
 async def qrcode_update(websocket,device_id):
     """更新二维码"""
     data_for_device=await qr_code.get_data_for_device()
     latest_version=await qr_code.get_latest_version()
     # 应该对比二维码版本，决定更新  
+    # if latest_version==await database.get_qrcode_version(device_id):
+    #     # 二维码版本相同
+    #     return 0
     try:
         ret=await device_frame.config(websocket,device_id,{"qrcode":"https://u.wechat.com/EL_WfiYtGUjkmiqeMwssvrE?s=2"})
     except:
-        await connection.device.remove_connection(device_id)
-        print('Config qrcode failed. Device {} not connected'.format(device_id))
+        await device_connections.remove_connection(device_id)
         logging.debug('Config qrcode failed. Device {} not connected'.format(device_id))
         ret=0
     if ret==1:
         await database.set_device_qrcode_version(device_id,latest_version)
+    return ret
 
 
 async def handler(websocket, frame_dict,connection_added):
@@ -123,20 +152,24 @@ async def handler(websocket, frame_dict,connection_added):
     await check_crc(websocket, frame_dict)
     # TODO：上线处理，还是让设备发config上线好了，不要在这里就上线
     if connection_added==0:
-        await connection.device.add_connection(frame_dict['source_id'],websocket)
-        connection_added=1
+        logging.info("Add connection for device {}".format(frame_dict['source_id']))
+        await device_connections.add_connection(frame_dict['source_id'],websocket)
+        # connection_added=1
     if frame_dict['type'] == 'register':
         await register_handler(websocket, frame_dict)
     elif frame_dict['type'] == 'alarm':
         await alarm_handler(websocket, frame_dict)
     elif frame_dict['type'] == 'config':
         await config_handler(websocket, frame_dict)
-    # 更新二维码
-    await qrcode_update(websocket,frame_dict['source_id'])
+    # 更新二维码，暂时这样写，在第一次连接时更新
+    if connection_added==0:
+        await qrcode_update(websocket,frame_dict['source_id'])
+        connection_added=1
+    return connection_added
 
 async def offline_handler(websocket):
     """掉线处理"""
-    device_id=await connection.device.get_device_id(websocket)
+    device_id=await device_connections.get_device_id(websocket)
     if device_id:
         # 修改地图
         map_data_dict={}    # 所有需要修改的地图相对路径，和数据
@@ -154,9 +187,8 @@ async def offline_handler(websocket):
                 await user_frame.map_update(icon_relative_path,icon_data,map_source,await emerg_data.get_message_list())
         except:
             # 可能设备位置信息不完整
-            print('Device {} position information is incomplete'.format(device_id))
+            logging.error('Device {} offline mapupdate failed'.format(device_id))
 
         # 从connection中删除
-        await connection.device.remove_connection(websocket)
-        print('Device {} offline'.format(device_id))
+        await device_connections.remove_connection(websocket)
         logging.info('Device {} offline'.format(device_id))
