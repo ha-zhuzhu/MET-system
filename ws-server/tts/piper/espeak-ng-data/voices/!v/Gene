@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 language variant
 name Gene
 
@@ -15,3 +16,22 @@ formant 8 100 80 100
 voicing 120
 consonants 50 110
 
+=======
+language variant
+name Gene
+
+pitch  80 110
+
+formant 0 120 120 120
+formant 1 90 100 110
+formant 2 100 100 95
+formant 3 90 100 100
+formant 4 90 100 110
+formant 5 90 110 110
+formant 6 100 70 100
+formant 7 100 70 100
+formant 8 100 80 100
+voicing 120
+consonants 50 110
+
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b

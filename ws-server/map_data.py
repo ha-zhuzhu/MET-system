@@ -14,9 +14,15 @@ async def update_device_status(device_id,status):
     location_dict=await database.get_device_location(device_id)
     icon_relative_path_dict=await config_loader.get_icon_relative_path_dict()
     # 如果设备位置信息不完整，不更新
+    print(location_dict)
     if location_dict['building_en'] is None or location_dict['floor'] is None:
+<<<<<<< HEAD
         logging.error(f'数据库中设备{device_id}的位置信息不完整')
         return '',''
+=======
+        logging.error("device id {} has no building_en or floor in database".format(device_id))
+        return
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
     icon_path=icon_path_dict[location_dict['building_en']][location_dict['floor']]
     icon_relative_path=icon_relative_path_dict[location_dict['building_en']][location_dict['floor']]
     
@@ -25,7 +31,14 @@ async def update_device_status(device_id,status):
         icon_data=json.loads(icon_data)
         for feature in icon_data['features']:
             if 'device_id' in feature['properties'].keys():
+<<<<<<< HEAD
                 if feature['properties']['device_id']==device_id or feature['properties']['device_id']==str(device_id):
+=======
+                print(device_id)
+                print(feature['properties']['device_id'])
+                if feature['properties']['device_id']==device_id or feature['properties']['device_id']==str(device_id):
+                    print('find')
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
                     feature['properties']['status']=status
     async with aiofile.async_open(icon_path,'w') as file:
         await file.write(json.dumps(icon_data,indent=4))

@@ -66,8 +66,11 @@ async def main(env):
     await qr_code.init()
     await map_path.init()    # 监听所有接口
     await map_location.init() 
+<<<<<<< HEAD
     await bc25.start()
     await a7670c.start()
+=======
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
     async with websockets.serve(handler, "", 8008):
         await asyncio.Future()  # run forever
 

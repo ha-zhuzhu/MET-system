@@ -11,8 +11,16 @@
   "dependencies": {
     "express": "^4.21.1",
     "fluent-ffmpeg": "^2.1.3",
+<<<<<<< HEAD
     "npm": "^10.9.0",
     "websocket-stream": "^5.5.2",
     "ws": "^8.18.0"
+=======
+    "http": "^0.0.1-security",
+    "npm": "^10.9.0",
+    "stream": "^0.0.3",
+    "websocket-stream": "^5.5.2",
+    "ws": "^7.5.10"
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
   }
 }

@@ -79,11 +79,16 @@ async def alarm_handler(websocket, frame_dict):
     
     # 修改设备状态
     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.alarm.value)
+<<<<<<< HEAD
     if icon_relative_path=='':
         # 设备位置信息不完整
         logging.error(f'无法更新设备{device_id}的状态，因为设备位置信息不完整')
     else:
         map_data_dict[icon_relative_path]=icon_data
+=======
+    print(icon_data)
+    map_data_dict[icon_relative_path]=icon_data
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
     # 修改用户状态
     user_id_list=await emerg_data.get_user_id(device_id)
     for user_id in user_id_list:

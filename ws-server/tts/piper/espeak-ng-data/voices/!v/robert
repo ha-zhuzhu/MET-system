@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 language variant
 name Robert
 
@@ -15,3 +16,22 @@ formant 8 100 0 100
 voicing 115
 consonants 110 120
 
+=======
+language variant
+name Robert
+
+pitch  65 115
+
+formant 0 85 108 100
+formant 1 95 110 60
+formant 2 97 90 50
+formant 3 101 50 50
+formant 4 110 65 55
+formant 5 110 60 65
+formant 6 110 60 65
+formant 7 100 0 100
+formant 8 100 0 100
+voicing 115
+consonants 110 120
+
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b

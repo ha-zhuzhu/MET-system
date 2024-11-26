@@ -128,9 +128,15 @@ async def request_handler(websocket,frame_dict):
             device_id=int(frame_dict['data']['device_id'])
             device_status=frame_dict['data']['device_status']
             try:
+<<<<<<< HEAD
                 logging.info("id connection:",await device_connections.get_connection(device_id))
             except:
                 logging.info("Device id {} not connected, status change failed".format(device_id))
+=======
+                print("id connection:",await connection.device.get_connection(device_id))
+            except:
+                print("device id {} not connected".format(device_id))
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
             # 发送配置帧
             try:
                 await device_frame.config(await device_connections.get_connection(device_id),device_id,{'status':device_status})                      
@@ -278,10 +284,18 @@ async def request_handler(websocket,frame_dict):
                 await database.set_device_status(device_id,status.button.standby.value)
                 # 通知设备
                 try:
+<<<<<<< HEAD
                     await device_frame.config(await device_connections.get_connection(device_id),device_id,{'status':status.button.standby.value})
                 except:
                     await device_connections.remove_connection(device_id)
                     logging.info('Config to standby status failed. Device {} not connected'.format(device_id))
+=======
+                    await device_frame.config(await connection.device.get_connection(device_id),device_id,{'status':status.button.standby.value})
+                except:
+                    await connection.device.remove_connection(device_id)
+                    print('Config to standby status failed. Device {} not connected'.format(device_id))
+                    logging.debug('Config to standby status failed. Device {} not connected'.format(device_id))
+>>>>>>> 8fe26a4b4fdead9e5ca165b0089f41592f8ba15b
                     # 修改地图
                     icon_relative_path,icon_data=await map_data.update_device_status(device_id,status.button.offline.value)
                     map_data_dict[icon_relative_path]=icon_data
